@@ -1,0 +1,14 @@
+[Блок питания 12V +] ---[Положительный насос]---[Катод 1N5819]
+                       |                     |
+                       [Насос YX DC12V]  [Диод 1N5819]
+                       |                     |
+                       [Отрицательный]---[Анод]---[Collector BC337-40]
+                                              [Emitter]---[GND]
+[Arduino D9]---[220 Ом]---[Base BC337-40]
+[Arduino VIN]---[Блок питания 12V +]
+[Arduino GND]---[GND блока питания]---[GND TM1637]---[Кнопка 1]---[D4 Arduino]
+                                     |
+                                     [CLK TM1637]---[D2 Arduino]
+                                     [DIO TM1637]---[D3 Arduino]
+                                     [Кнопка 2]---[D5 Arduino]
+[5V Arduino]---[VCC TM1637]
