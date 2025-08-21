@@ -3,6 +3,7 @@
 
 #define CLK 2             // TM1637 CLK
 #define DIO 3             // TM1637 DIO
+#define SPEAKER_PIN 8     // Speaker
 #define PUMP_PIN 9        // Pump (BC337-40, NPN)
 #define BUTTON_LEFT 4     // Left Button
 #define BUTTON_RIGHT 5    // Right Button
@@ -12,6 +13,65 @@
 
 
 //Classes:
+class Speaker {
+  private:
+    int pin;
+    unsigned long toneStartTime;
+    bool isPlaying;
+    unsigned long toneDuration;
+    int toneFrequency;
+    int beepState;
+    unsigned long beepInterval;
+
+  public:
+    Speaker(int speakerPin) : pin(speakerPin), toneStartTime(0), isPlaying(false), toneDuration(0), 
+                             toneFrequency(0), beepState(0), beepInterval(0) {
+      pinMode(pin, OUTPUT);
+    }
+
+    void oneBeep() {
+      if (!isPlaying) {
+        toneFrequency = 852;
+        toneDuration = 600;
+        toneStartTime = millis();
+        tone(pin, toneFrequency);
+        isPlaying = true;
+      }
+    }
+
+    void twoBeep() {
+      if (!isPlaying && beepState == 0) {
+        toneFrequency = 852;
+        toneDuration = 300;
+        toneStartTime = millis();
+        tone(pin, toneFrequency);
+        isPlaying = true;
+        beepState = 1;
+      }
+    }
+
+    void update() {
+      if (isPlaying && (millis() - toneStartTime >= toneDuration)) {
+        noTone(pin);
+        isPlaying = false;
+        if (beepState == 1) {
+          beepInterval = millis();
+          beepState = 2;
+        } else if (beepState == 2 && (millis() - beepInterval >= 200)) {
+          toneFrequency = 852;
+          toneDuration = 300;
+          toneStartTime = millis();
+          tone(pin, toneFrequency);
+          isPlaying = true;
+          beepState = 3;
+        } else if (beepState == 3) {
+          beepState = 0;
+        }
+      }
+    }
+};
+
+
 class Pump {
 private:
   int pin;
@@ -25,6 +85,7 @@ public:
   }
   void turnOff() {
     digitalWrite(pin, LOW);
+    speaker.oneBeep();
   }
 };
 
@@ -181,12 +242,14 @@ void SystemManagement::checkDoubleButtons() {
   if (interface.checkButtonsHold()) {
     if (!interface.pumpRunning) {
       pump.turnOn();
+      speaker.twoBeep();
       interface.pumpRunning = true;
       interface.pumpStartTime = millis();
       interface.pumpStartWaitingTime = millis() + interface.pumpRunTime;
       interface.remainingTime = interface.pumpRunTime;
     } else {
       pump.turnOff();
+      speaker.oneBeep();
       interface.pumpRunning = false;
       interface.pumpStartWaitingTime = millis();
     }
@@ -254,6 +317,7 @@ void SystemManagement::intervalMenu() {
 void SystemManagement::timers() {
   if (!interface.pumpRunning && millis() - interface.pumpStartWaitingTime >= interface.pumpWaiting) {
     pump.turnOn();
+    speaker.twoBeep();
     interface.pumpRunning = true;
     interface.pumpStartTime = millis();
     interface.pumpStartWaitingTime = millis() + interface.pumpRunTime;
@@ -266,6 +330,7 @@ void SystemManagement::timers() {
     interface.updateDisplayRunningTime();
     if (interface.remainingTime == 0) {
       pump.turnOff();
+      speaker.oneBeep();
       interface.pumpRunning = false;
       interface.pumpStartWaitingTime = millis();
     }
@@ -276,7 +341,9 @@ void SystemManagement::timers() {
   }
 };
 
+
 TM1637Display display(CLK, DIO);
+Speaker speaker(SPEAKER_PIN);
 Pump pump(PUMP_PIN);
 Interface interface;
 SystemManagement systemManager;
@@ -284,16 +351,18 @@ SystemManagement systemManager;
 
 void setup() {
   //Display setup
-  display.setBrightness(5);
+  display.setBrightness(7);
   display.clear();
   display.setSegments(interface.ON);
   //Pins setup
   pinMode(BUTTON_LEFT, INPUT_PULLUP);
   pinMode(BUTTON_RIGHT, INPUT_PULLUP);
+  speaker.oneBeep();
 }
 
 
 void loop() {
+  speaker.update();
   systemManager.checkDoubleButtons();
   systemManager.checkOneButton();
   systemManager.runtimeMenu();
