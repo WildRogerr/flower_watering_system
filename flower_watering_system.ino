@@ -13,6 +13,9 @@
 
 
 //Classes:
+TM1637Display display(CLK, DIO);
+
+
 class Speaker {
   private:
     int pin;
@@ -71,6 +74,8 @@ class Speaker {
     }
 };
 
+Speaker speaker(SPEAKER_PIN);
+
 
 class Pump {
 private:
@@ -88,6 +93,8 @@ public:
     speaker.oneBeep();
   }
 };
+
+Pump pump(PUMP_PIN);
 
 
 class Interface {
@@ -115,11 +122,14 @@ public:
   pumpWaiting(600000), pumpWaitingRemain(0), pumpRunning(false),
   colonState(true), lastColonToggle(0), startTime(0) {}
 
-  const uint8_t ON[] = {
+  const uint8_t ON[4] = {
   0, 0,
   SEG_A | SEG_B | SEG_C | SEG_D | SEG_E | SEG_F, // O
   SEG_C | SEG_E | SEG_G                         // n
   };
+
+  friend class SystemManagement;
+
   bool checkButtonsHold();
   bool checkButtonHoldLeft();
   bool checkButtonHoldRight();
@@ -206,6 +216,7 @@ void Interface::updateDisplayWaitingTime(unsigned long displayTimeValue) {
   unsigned long hours = (totalSeconds % 86400) / 3600;
   unsigned long minutes = (totalSeconds % 3600) / 60;
   unsigned long seconds = totalSeconds % 60;
+  unsigned long displayTime;
   if (totalSeconds < 3600) {
     displayTime = minutes * 100 + seconds;
   } else if (totalSeconds < 86400) {
@@ -228,6 +239,9 @@ void Interface::updateDisplayWaitingTime(unsigned long displayTimeValue) {
     display.showNumberDecEx(displayTime, 0b01000000, true);
   }
 };
+
+Interface interface;
+
 
 class SystemManagement {
   public:
@@ -341,11 +355,6 @@ void SystemManagement::timers() {
   }
 };
 
-
-TM1637Display display(CLK, DIO);
-Speaker speaker(SPEAKER_PIN);
-Pump pump(PUMP_PIN);
-Interface interface;
 SystemManagement systemManager;
 
 
