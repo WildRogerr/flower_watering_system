@@ -33,19 +33,20 @@ class Speaker {
     }
 
     void oneBeep() {
-      if (!isPlaying) {
-        toneFrequency = 852;
-        toneDuration = 600;
+      if (!isPlaying && beepState == 0) {
+        toneFrequency = 880;
+        toneDuration = 200;
         toneStartTime = millis();
         tone(pin, toneFrequency);
         isPlaying = true;
+        beepState = 3;
       }
     }
 
     void twoBeep() {
       if (!isPlaying && beepState == 0) {
-        toneFrequency = 852;
-        toneDuration = 300;
+        toneFrequency = 880;
+        toneDuration = 150;
         toneStartTime = millis();
         tone(pin, toneFrequency);
         isPlaying = true;
@@ -53,16 +54,38 @@ class Speaker {
       }
     }
 
+    void runtimeBeep() {
+      if (!isPlaying && beepState == 0) {
+        toneFrequency = 1319;
+        toneDuration = 200;
+        toneStartTime = millis();
+        tone(pin, toneFrequency);
+        isPlaying = true;
+        beepState = 3;
+      }
+    }
+
+    void intervalBeep() {
+      if (!isPlaying && beepState == 0) {
+        toneFrequency = 587;
+        toneDuration = 200;
+        toneStartTime = millis();
+        tone(pin, toneFrequency);
+        isPlaying = true;
+        beepState = 3;
+      }
+    }
+
     void update() {
-      if (isPlaying && (millis() - toneStartTime >= toneDuration)) {
+      if (beepState > 0 && (millis() - toneStartTime >= toneDuration)) {
         noTone(pin);
         isPlaying = false;
         if (beepState == 1) {
           beepInterval = millis();
           beepState = 2;
-        } else if (beepState == 2 && (millis() - beepInterval >= 200)) {
-          toneFrequency = 852;
-          toneDuration = 300;
+        } else if (beepState == 2 && (millis() - beepInterval >= 150)) {
+          toneFrequency = 880;
+          toneDuration = 150;
           toneStartTime = millis();
           tone(pin, toneFrequency);
           isPlaying = true;
@@ -90,7 +113,6 @@ public:
   }
   void turnOff() {
     digitalWrite(pin, LOW);
-    speaker.oneBeep();
   }
 };
 
@@ -100,10 +122,9 @@ Pump pump(PUMP_PIN);
 class Interface {
 private:
   unsigned short menuStatus;
-  const unsigned short holdTime = 1000;
-  const unsigned short holdTime2 = 3000;
-  const unsigned long settingsTimeout = 5000;
-  unsigned int lastPushButton;
+  const unsigned short holdTime = 2000;
+  const unsigned short settingsTimeout = 3000;
+  unsigned long lastPushButton;
   unsigned long pumpStartTime;
   unsigned long pumpStartWaitingTime;
   unsigned long pumpRunTime;
@@ -112,6 +133,8 @@ private:
   unsigned long pumpWaitingRemain;
   unsigned long lastColonToggle;
   unsigned long startTime;
+  unsigned long startTimeLeft;
+  unsigned long startTimeRight;
   bool pumpRunning;
   bool colonState;
   
@@ -120,7 +143,8 @@ public:
   Interface() : menuStatus(MAIN_MENU), lastPushButton(0), pumpStartTime(0),
   pumpStartWaitingTime(0), pumpRunTime(10000), remainingTime(0), 
   pumpWaiting(600000), pumpWaitingRemain(0), pumpRunning(false),
-  colonState(true), lastColonToggle(0), startTime(0) {}
+  colonState(true), lastColonToggle(0), startTime(0),
+  startTimeLeft(0), startTimeRight(0) {}
 
   const uint8_t ON[4] = {
   0, 0,
@@ -139,46 +163,70 @@ public:
 };
 
 bool Interface::checkButtonsHold() {
+  static unsigned long lastDebounceTime = 0;
+  if (millis() < 50 && lastDebounceTime == 0) {
+  } else if (millis() - lastDebounceTime < 50) {
+    return false;
+  }
   if (digitalRead(BUTTON_LEFT) == LOW && digitalRead(BUTTON_RIGHT) == LOW) {
-    startTime = millis();
-    while (millis() - startTime < holdTime) {
-      if (digitalRead(BUTTON_LEFT) != LOW || digitalRead(BUTTON_RIGHT) != LOW) {
-        return false;
-      }
-      delay(50);
+    if (startTime == 0) {
+      startTime = millis();
     }
-    return true;
+    if (millis() - startTime >= holdTime) {
+      lastDebounceTime = millis();
+      startTime = 0;
+      return true;
+    }
+  } else {
+    startTime = 0;
+    lastDebounceTime = millis();
   }
   return false;
-};
+}
 
 bool Interface::checkButtonHoldLeft() {
-  if (digitalRead(BUTTON_LEFT) == LOW && menuStatus == MAIN_MENU) {
-    startTime = millis();
-    while (millis() - startTime < holdTime2) {
-      if (digitalRead(BUTTON_LEFT) != LOW) {
-        return false;
-      }
-      delay(50);
+  static unsigned long lastDebounceTime = 0;
+  if (millis() < 50 && lastDebounceTime == 0) {
+  } else if (millis() - lastDebounceTime < 50) {
+      return false;
+  }
+  if (digitalRead(BUTTON_LEFT) == LOW && digitalRead(BUTTON_RIGHT) == !LOW && menuStatus == MAIN_MENU) {
+    if (startTimeLeft == 0) {
+      startTimeLeft = millis();
     }
-    return true;
+    if (millis() - startTimeLeft >= holdTime) {
+      lastDebounceTime = millis();
+      startTimeLeft = 0;
+      return true;
+    }
+  } else {
+    startTimeLeft = 0;
+    lastDebounceTime = millis();
   }
   return false;
-};
+}
 
 bool Interface::checkButtonHoldRight() {
-  if (digitalRead(BUTTON_RIGHT) == LOW && menuStatus == MAIN_MENU) {
-    startTime = millis();
-    while (millis() - startTime < holdTime2) {
-      if (digitalRead(BUTTON_RIGHT) != LOW) {
-        return false;
-      }
-      delay(50);
+  static unsigned long lastDebounceTime = 0;
+  if (millis() < 50 && lastDebounceTime == 0) {
+  } else if (millis() - lastDebounceTime < 50) {
+      return false;
+  }
+  if (digitalRead(BUTTON_RIGHT) == LOW && digitalRead(BUTTON_LEFT) == !LOW && menuStatus == MAIN_MENU) {
+    if (startTimeRight == 0) {
+      startTimeRight = millis();
     }
-    return true;
+    if (millis() - startTimeRight >= holdTime) {
+      lastDebounceTime = millis();
+      startTimeRight = 0;
+      return true;
+    }
+  } else {
+    startTimeRight = 0;
+    lastDebounceTime = millis();
   }
   return false;
-};
+}
 
 void Interface::updateDisplayRunningTime() {
   unsigned long totalSeconds = remainingTime / 1000;
@@ -217,8 +265,10 @@ void Interface::updateDisplayWaitingTime(unsigned long displayTimeValue) {
   unsigned long minutes = (totalSeconds % 3600) / 60;
   unsigned long seconds = totalSeconds % 60;
   unsigned long displayTime;
-  if (totalSeconds < 3600) {
+  if (totalSeconds < 3600 && menuStatus == RUNTIME_MENU || menuStatus == MAIN_MENU) {
     displayTime = minutes * 100 + seconds;
+  } else if (totalSeconds < 3600 && menuStatus == INTERVAL_MENU) {
+    displayTime = 00+minutes;
   } else if (totalSeconds < 86400) {
     displayTime = hours * 100 + minutes;
   } else {
@@ -229,7 +279,7 @@ void Interface::updateDisplayWaitingTime(unsigned long displayTimeValue) {
   } else if (displayTime > 9959) {
     displayTime = 9959;
   }
-  if (menuStatus == INTERVAL_MENU) {
+  if (menuStatus == INTERVAL_MENU || menuStatus == RUNTIME_MENU) {
     if (millis() - lastColonToggle >= 500) {
       colonState = !colonState;
       lastColonToggle = millis();
@@ -253,7 +303,8 @@ class SystemManagement {
 };
 
 void SystemManagement::checkDoubleButtons() {
-  if (interface.checkButtonsHold()) {
+  static unsigned long lastButtonPress = 0;
+  if (interface.checkButtonsHold() && (millis() - lastButtonPress >= 200)) {
     if (!interface.pumpRunning) {
       pump.turnOn();
       speaker.twoBeep();
@@ -263,45 +314,57 @@ void SystemManagement::checkDoubleButtons() {
       interface.remainingTime = interface.pumpRunTime;
     } else {
       pump.turnOff();
-      speaker.oneBeep();
       interface.pumpRunning = false;
       interface.pumpStartWaitingTime = millis();
+      speaker.oneBeep();
     }
     interface.menuStatus = MAIN_MENU;
-    delay(200);
+    lastButtonPress = millis();
   }
 };
 
 void SystemManagement::checkOneButton() {
+  static unsigned long lastDebounceTime = 0;
+  if (millis() - lastDebounceTime < 50) return;
+  
   if (interface.checkButtonHoldLeft() && !interface.pumpRunning) {
     interface.menuStatus = RUNTIME_MENU;
+    speaker.runtimeBeep();
     interface.lastPushButton = millis();
     interface.colonState = true;
     interface.lastColonToggle = millis();
+    lastDebounceTime = millis();
   }
 
   if (interface.checkButtonHoldRight() && !interface.pumpRunning) {
     interface.menuStatus = INTERVAL_MENU;
+    speaker.intervalBeep();
     interface.lastPushButton = millis();
     interface.colonState = true;
     interface.lastColonToggle = millis();
+    lastDebounceTime = millis();
   }
 };
 
 void SystemManagement::runtimeMenu() {
+  static unsigned long lastDebounceTime = 0;
+  if (millis() - lastDebounceTime < 50) return;
   if (interface.menuStatus == RUNTIME_MENU) {
     if (millis() - interface.lastPushButton < interface.settingsTimeout) {
-      if (digitalRead(BUTTON_LEFT) == LOW && millis() - interface.lastPushButton >= 100) {
+      if (digitalRead(BUTTON_LEFT) == LOW && (millis() - interface.lastPushButton >= 100)) {
         interface.pumpRunTime = (interface.pumpRunTime >= 1000) ? interface.pumpRunTime - 1000 : 5999000;
         interface.lastPushButton = millis();
+        lastDebounceTime = millis();
       }
-      if (digitalRead(BUTTON_RIGHT) == LOW && millis() - interface.lastPushButton >= 100) {
+      if (digitalRead(BUTTON_RIGHT) == LOW && (millis() - interface.lastPushButton >= 100)) {
         interface.pumpRunTime = (interface.pumpRunTime <= 5999000) ? interface.pumpRunTime + 1000 : 1000;
         interface.lastPushButton = millis();
+        lastDebounceTime = millis();
       }
       interface.updateDisplayPumpTime(interface.pumpRunTime);
-    } else {
+    } else if (digitalRead(BUTTON_LEFT) == HIGH && digitalRead(BUTTON_RIGHT) == HIGH) {
       interface.menuStatus = MAIN_MENU;
+      speaker.oneBeep();
       interface.colonState = true;
       interface.updateDisplayWaitingTime(interface.pumpWaitingRemain);
     }
@@ -309,27 +372,41 @@ void SystemManagement::runtimeMenu() {
 };
 
 void SystemManagement::intervalMenu() {
+  static unsigned long lastDebounceTime = 0;
+  if (millis() - lastDebounceTime < 50) return;
   if (interface.menuStatus == INTERVAL_MENU) {
     if (millis() - interface.lastPushButton < interface.settingsTimeout) {
-      if (digitalRead(BUTTON_LEFT) == LOW && millis() - interface.lastPushButton >= 100) {
-        interface.pumpWaiting = (interface.pumpWaiting >= 60000) ? interface.pumpWaiting - 60000 : 8639999000;
+      if (digitalRead(BUTTON_LEFT) == LOW && millis() - interface.lastPushButton >= 100 && interface.pumpWaiting <= 86400000) {
+        interface.pumpWaiting = (interface.pumpWaiting >= 60000) ? interface.pumpWaiting - 60000 : 2678400000;
         interface.lastPushButton = millis();
+        lastDebounceTime = millis();
+      } else if (digitalRead(BUTTON_LEFT) == LOW && millis() - interface.lastPushButton >= 100 && interface.pumpWaiting <= 2678400000) {
+        interface.pumpWaiting = (interface.pumpWaiting >= 60000) ? interface.pumpWaiting - 3600000 : 2678400000;
+        interface.lastPushButton = millis();
+        lastDebounceTime = millis();
       }
-      if (digitalRead(BUTTON_RIGHT) == LOW && millis() - interface.lastPushButton >= 100) {
-        interface.pumpWaiting = (interface.pumpWaiting <= 8639999000) ? interface.pumpWaiting + 60000 : 60000;
+      if (digitalRead(BUTTON_RIGHT) == LOW && millis() - interface.lastPushButton >= 100 && interface.pumpWaiting >= 86400000) {
+        interface.pumpWaiting = (interface.pumpWaiting <= 2678400000) ? interface.pumpWaiting + 3600000 : 60000;
         interface.lastPushButton = millis();
+        lastDebounceTime = millis();
+      } else if (digitalRead(BUTTON_RIGHT) == LOW && millis() - interface.lastPushButton >= 100 && interface.pumpWaiting >= 60000) {
+        interface.pumpWaiting = (interface.pumpWaiting <= 2678400000) ? interface.pumpWaiting + 60000 : 60000;
+        interface.lastPushButton = millis();
+        lastDebounceTime = millis();
       }
       interface.updateDisplayWaitingTime(interface.pumpWaiting);
-    } else {
+    } else if (digitalRead(BUTTON_LEFT) == HIGH && digitalRead(BUTTON_RIGHT) == HIGH) {
       interface.menuStatus = MAIN_MENU;
+      speaker.oneBeep();
       interface.colonState = true;
+      interface.pumpStartWaitingTime = millis();
       interface.updateDisplayWaitingTime(interface.pumpWaitingRemain);
     }
   }
 };
 
 void SystemManagement::timers() {
-  if (!interface.pumpRunning && millis() - interface.pumpStartWaitingTime >= interface.pumpWaiting) {
+  if (!interface.pumpRunning && millis() - interface.pumpStartWaitingTime >= interface.pumpWaiting && interface.menuStatus == MAIN_MENU) {
     pump.turnOn();
     speaker.twoBeep();
     interface.pumpRunning = true;
@@ -344,9 +421,9 @@ void SystemManagement::timers() {
     interface.updateDisplayRunningTime();
     if (interface.remainingTime == 0) {
       pump.turnOff();
-      speaker.oneBeep();
       interface.pumpRunning = false;
       interface.pumpStartWaitingTime = millis();
+      speaker.oneBeep();
     }
   } else if (interface.menuStatus == MAIN_MENU) {
     interface.pumpWaitingRemain = (interface.pumpWaiting > (millis() - interface.pumpStartWaitingTime))
@@ -360,9 +437,10 @@ SystemManagement systemManager;
 
 void setup() {
   //Display setup
-  display.setBrightness(7);
+  display.setBrightness(5);
   display.clear();
   display.setSegments(interface.ON);
+  delay(2000);
   //Pins setup
   pinMode(BUTTON_LEFT, INPUT_PULLUP);
   pinMode(BUTTON_RIGHT, INPUT_PULLUP);
@@ -372,9 +450,9 @@ void setup() {
 
 void loop() {
   speaker.update();
+  systemManager.timers();
   systemManager.checkDoubleButtons();
   systemManager.checkOneButton();
   systemManager.runtimeMenu();
   systemManager.intervalMenu();
-  systemManager.timers();
 }
