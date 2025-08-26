@@ -265,7 +265,7 @@ void Interface::updateDisplayWaitingTime(unsigned long displayTimeValue) {
   unsigned long minutes = (totalSeconds % 3600) / 60;
   unsigned long seconds = totalSeconds % 60;
   unsigned long displayTime;
-  if (totalSeconds < 3600 && menuStatus == RUNTIME_MENU || menuStatus == MAIN_MENU) {
+  if (totalSeconds < 3600 && menuStatus == RUNTIME_MENU || menuStatus == MAIN_MENU && pumpRunning) {
     displayTime = minutes * 100 + seconds;
   } else if (totalSeconds < 3600 && menuStatus == INTERVAL_MENU) {
     displayTime = 00+minutes;
