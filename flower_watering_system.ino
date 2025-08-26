@@ -265,15 +265,14 @@ void Interface::updateDisplayWaitingTime(unsigned long displayTimeValue) {
   unsigned long minutes = (totalSeconds % 3600) / 60;
   unsigned long seconds = totalSeconds % 60;
   unsigned long displayTime;
-  if (totalSeconds < 3600 && menuStatus == RUNTIME_MENU || menuStatus == MAIN_MENU && pumpRunning) {
-    displayTime = minutes * 100 + seconds;
-  } else if (totalSeconds < 3600 && menuStatus == INTERVAL_MENU) {
+  if (totalSeconds < 3600 && menuStatus == INTERVAL_MENU) {
     displayTime = 00+minutes;
-  } else if (totalSeconds < 86400) {
+  } else if (totalSeconds < 86400 && totalSeconds > 3600) {
     displayTime = hours * 100 + minutes;
-  } else {
+  } else if (totalSeconds > 86400) {
     displayTime = (days % 100) * 100 + (hours % 24);
-  }
+  } else if (totalSeconds < 3600 && menuStatus == RUNTIME_MENU || menuStatus == MAIN_MENU) {
+    displayTime = minutes * 100 + seconds;
   if (displayTime > 9923 && totalSeconds >= 86400) {
     displayTime = 9923;
   } else if (displayTime > 9959) {
