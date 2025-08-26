@@ -273,6 +273,7 @@ void Interface::updateDisplayWaitingTime(unsigned long displayTimeValue) {
     displayTime = (days % 100) * 100 + (hours % 24);
   } else if (totalSeconds < 3600 && menuStatus == RUNTIME_MENU || menuStatus == MAIN_MENU) {
     displayTime = minutes * 100 + seconds;
+  }
   if (displayTime > 9923 && totalSeconds >= 86400) {
     displayTime = 9923;
   } else if (displayTime > 9959) {
